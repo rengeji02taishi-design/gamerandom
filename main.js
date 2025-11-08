@@ -15,7 +15,7 @@ let loaded1 = false;
 let loaded2 = false;
 let message = 'バトル開始！';
 const ally = { name: 'your bird', hp: 100, maxHp: 100, atk: 22 };
-const foe  = { name: 'bananaman', hp: 120, maxHp: 120, atk: 22 };
+const foe  = { name: 'bananaman', hp: 140, maxHp: 140, atk: 22 };
 let busy = false; // 行動中はボタン無効
 let healUsed = false; // 一度だけ回復可能
 let winStreak = 0; // 連勝数
@@ -67,9 +67,11 @@ function setButtonsEnabled(enabled){
   const atkBtn = document.getElementById('btn-attack');
   const runBtn = document.getElementById('btn-run');
   const healBtn = document.getElementById('btn-heal');
+  const magicBtn = document.getElementById('btn-magic');
   if (atkBtn) atkBtn.disabled = !enabled;
   if (runBtn) runBtn.disabled = !enabled;
   if (healBtn) healBtn.disabled = !enabled || healUsed;
+  if (magicBtn) magicBtn.disabled = !enabled;
 }
 
 // 回復SE（kauhuku.mp3 を再生）
@@ -92,7 +94,7 @@ function playerHeal(){
   if (busy || healUsed) return;
   busy = true; setButtonsEnabled(false);
   playHealSfx();
-  const amount = randInt(20, 80); // 1〜100 の乱数
+  const amount = randInt(0, 70); // 1〜100 の乱数
   const before = ally.hp;
   ally.hp = Math.min(ally.maxHp, ally.hp + amount);
   const actual = ally.hp - before;
@@ -132,6 +134,75 @@ function playerAttack(){
     return;
   }
   // 敵の反撃を少し待ってから
+  setTimeout(enemyAttack, 2000);
+}
+
+// 魔法SE（bob.mp3 を再生）
+let magicSfx;
+function playMagicSfx(){
+  try {
+    if (!magicSfx) {
+      magicSfx = new Audio('bob.mp3');
+      magicSfx.preload = 'auto';
+      magicSfx.volume = 0.85;
+    }
+    magicSfx.currentTime = 0;
+    magicSfx.play().catch((e)=>console.warn('魔法SEの再生に失敗:', e));
+  } catch (e) {
+    console.warn('Magic SFX error:', e);
+  }
+}
+
+function playerMagic(){
+  if (busy) return;
+  busy = true; setButtonsEnabled(false);
+  playMagicSfx();
+  // 魔法エフェクト表示（baku.pngを1秒表示）
+  (function(){
+    const effect = document.createElement('img');
+    effect.src = 'baku.png';
+    Object.assign(effect.style, {
+      position: 'fixed',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '50%',
+      zIndex: 9999,
+      pointerEvents: 'none'
+    });
+    document.body.appendChild(effect);
+    setTimeout(() => {
+      if (effect && effect.parentNode) effect.parentNode.removeChild(effect);
+    }, 1000);
+  })();
+  // 魔法ダメージ：やや高め＆ブレ少なめ
+  const base = Math.floor(ally.atk * 1.2);
+  const dmg = Math.max(1, Math.floor(base*0.8 + Math.random()*base*0.4));
+  foe.hp = Math.max(0, foe.hp - dmg);
+  message = `${ally.name} は まほうを となえた！\n${foe.name} に ${dmg} ダメージ！`;
+  startFlash('foe');
+  render();
+
+  if (foe.hp <= 0){
+    winStreak += 1;
+    window.winStreak = winStreak;
+    if (winStreak > bestStreak) bestStreak = winStreak;
+    window.bestStreak = bestStreak;
+    message += `\n${foe.name} は たおれた！\n連勝: ${winStreak}`;
+    render();
+    setTimeout(()=>{
+      const ui = document.getElementById('ui');
+      if (ui) ui.style.display = 'none';
+      stopBattleBgm();
+      if (typeof window.returnToWorld === 'function') {
+        window.returnToWorld();
+      } else {
+        busy = false; setButtonsEnabled(true);
+      }
+    }, 1200);
+    return;
+  }
+  // 敵の行動へ
   setTimeout(enemyAttack, 2000);
 }
 
@@ -321,7 +392,7 @@ function createUI(){
     ui.style.right = '12px';
     ui.style.bottom = '12px';
     ui.style.display = 'grid';
-    ui.style.gridTemplateColumns = '1fr 1fr';
+    ui.style.gridTemplateColumns = 'repeat(3, 1fr)';
     ui.style.gap = '8px';
     ui.style.zIndex = '10';
     document.body.appendChild(ui);
@@ -331,7 +402,7 @@ function createUI(){
   ui.innerHTML = '';
   const atkBtn = document.createElement('button');
   atkBtn.id = 'btn-attack';
-  atkBtn.textContent = 'たたかう';
+  atkBtn.textContent = '攻撃';
   atkBtn.style.padding = '12px';
   atkBtn.style.borderRadius = '10px';
   atkBtn.style.border = '1px solid #2a3548';
@@ -342,7 +413,7 @@ function createUI(){
 
   const healBtn = document.createElement('button');
   healBtn.id = 'btn-heal';
-  healBtn.textContent = 'かいふく';
+  healBtn.textContent = '気合い（回復）';
   healBtn.style.padding = '12px';
   healBtn.style.borderRadius = '10px';
   healBtn.style.border = '1px solid #2a3548';
@@ -351,8 +422,19 @@ function createUI(){
   healBtn.onclick = () => { if (!busy && !healUsed) playerHeal(); };
   addPressAnim(healBtn);
 
+  const magicBtn = document.createElement('button');
+  magicBtn.id = 'btn-magic';
+  magicBtn.textContent = 'ビッグバン';
+  magicBtn.style.padding = '12px';
+  magicBtn.style.borderRadius = '10px';
+  magicBtn.style.border = '1px solid #2a3548';
+  magicBtn.style.background = '#1a2331';
+  magicBtn.style.color = '#eaf1f7';
+  magicBtn.onclick = () => { if (!busy) playerMagic(); };
+  addPressAnim(magicBtn);
 
   ui.appendChild(atkBtn);
+  ui.appendChild(magicBtn);
   ui.appendChild(healBtn);
   setButtonsEnabled(true);
 }

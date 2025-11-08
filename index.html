@@ -1,25 +1,26 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <title>banana atack</title>
+  <meta charset="UTF-8">
+  <title>ドラクエ風マップ</title>
   <style>
-    body { margin: 0; background: #000; display:flex; justify-content:center; align-items:center; height:100vh; }
-    canvas { background: #111; width: 100vw; height: 100vh; display: block; }
+    body {
+      margin: 0;
+      background: black;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      image-rendering: pixelated;
+    }
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
+  <canvas id="game" width="960" height="640"></canvas>
+
+  <!-- world.js を読み込む -->
   <script src="world.js"></script>
   <script src="main.js"></script>
-  <script>
-    const canvas = document.getElementById('game');
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
-  </script>
 </body>
 </html>
